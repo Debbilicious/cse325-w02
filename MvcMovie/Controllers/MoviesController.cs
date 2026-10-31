@@ -1,7 +1,3 @@
-using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Threading.Tasks;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.Rendering;
 using Microsoft.EntityFrameworkCore;
@@ -19,9 +15,53 @@ namespace MvcMovie.Controllers
         }
 
         // GET: Movies
-        public async Task<IActionResult> Index()
+        public async Task<IActionResult> Index(string movieGenre, string searchString, int? year)
         {
-            return View(await _context.Movie.ToListAsync());
+            if (_context.Movie == null)
+            {
+                return Problem("Entity set 'MvcMovieContext.Movie' is null.");
+            }
+
+            // Genres for the dropdown
+            var genreList = await _context.Movie
+                .Where(m => m.Genre != null)
+                .Select(m => m.Genre!)
+                .Distinct()
+                .OrderBy(g => g)
+                .ToListAsync();
+
+            // Years for the dropdown (built from the release dates in the data)
+            var dates = await _context.Movie.Select(m => m.ReleaseDate).ToListAsync();
+            var yearList = dates.Select(d => d.Year).Distinct().OrderBy(y => y).ToList();
+
+            var movies = from m in _context.Movie
+                         select m;
+
+            if (!string.IsNullOrEmpty(searchString))
+            {
+                movies = movies.Where(s => s.Title!.ToUpper().Contains(searchString.ToUpper()));
+            }
+
+            if (!string.IsNullOrEmpty(movieGenre))
+            {
+                movies = movies.Where(x => x.Genre == movieGenre);
+            }
+
+            // Show movies released in the chosen year or newer
+            if (year.HasValue)
+            {
+                var start = new DateTime(year.Value, 1, 1);
+                movies = movies.Where(m => m.ReleaseDate >= start);
+            }
+
+            var movieGenreVM = new MovieGenreViewModel
+            {
+                Genres = new SelectList(genreList),
+                Years = new SelectList(yearList),
+                Movies = await movies.ToListAsync()
+            };
+
+            return View(movieGenreVM);
         }
 
         // GET: Movies/Details/5
@@ -49,8 +89,6 @@ namespace MvcMovie.Controllers
         }
 
         // POST: Movies/Create
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Create([Bind("Id,Title,ReleaseDate,Genre,Price")] Movie movie)
@@ -81,8 +119,6 @@ namespace MvcMovie.Controllers
         }
 
         // POST: Movies/Edit/5
-        // To protect from overposting attacks, enable the specific properties you want to bind to.
-        // For more details, see http://go.microsoft.com/fwlink/?LinkId=317598.
         [HttpPost]
         [ValidateAntiForgeryToken]
         public async Task<IActionResult> Edit(int id, [Bind("Id,Title,ReleaseDate,Genre,Price")] Movie movie)
@@ -154,5 +190,3 @@ namespace MvcMovie.Controllers
         }
     }
 }
-
-

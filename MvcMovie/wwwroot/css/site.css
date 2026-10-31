@@ -20,3 +20,8 @@ html {
 body {
   margin-bottom: 60px;
 }
+/* Padding for all form inputs so the text isn't jammed against the border */
+input, select, textarea {
+    padding: 0.5rem 0.75rem;
+    margin: 0.25rem 0.5rem 0.25rem 0;
+}
